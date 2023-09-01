@@ -2,6 +2,10 @@ const asyncHandler = require("express-async-handler");
 const User = require("../models/userModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { generateOTP, mailTransport, generateEmailTemplate, plainEmailTemplate } = require("../Utils/mail");
+const VerificationToken = require("../models/verificationToken");
+const { request } = require("express");
+const { isValidObjectId } = require("mongoose");
 // const Token = require("../models/tokenModel");
 // const crypto = require("crypto");
 // const sendEmail = require("../utils/sendEmail");
@@ -75,12 +79,29 @@ const registerUser = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Email has allready been registered");
   }
+
   // CREATE NEW USER
   const user = await User.create({
     name,
     email,
     password,
   });
+
+  // GENERATE AND SAVE IN DB 4DIDGETS FOR MAIL CONFIRMATION  <--- verificationToken
+  const OTP = generateOTP()
+  const verificationToken = new VerificationToken({
+    owner: user._id,
+    token: OTP,
+  })
+
+  await verificationToken.save()
+
+  mailTransport().sendMail({
+    from: 'emailverificatnio@email.com',
+    to: user.email,
+    subject: "Verify Your Email Account",
+    html: generateEmailTemplate(OTP)
+  })
 
   //GENERATE TOKEN F AFTER CREATE USER
   const token = generateToken(user._id);
@@ -147,7 +168,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
 // const registerUser = asyncHandler(async (req, res) => {
 //   const { name, email, password, photo, googleSignIn ,accessToken } = req.body;
-  
+
 //   if (!name || !email) {
 //     res.status(400);
 //     throw new Error("Please provide name and email");
@@ -339,7 +360,7 @@ const loginUser = asyncHandler(async (req, res) => {
   res.cookie("token", token, {
     path: "/",
     httpOnly: true,
-    expires: new Date(Date.now() + 1000 * 86400),
+    expires: new Date(Date.now() + 1000 * 86400), // ovo treba PROMENITI DA NE ISTICE ZA 1dan TOKEN
     sameSite: "none",
     secure: true,
   });
@@ -377,9 +398,78 @@ const logout = asyncHandler(async (req, res) => {
   });
 });
 
+
+
+const verifyEmail = asyncHandler(async (req, res) => {
+  const { userId, otp } = req.body;
+
+
+  if (!userId || !otp.trim()) {
+    res.status(400).json({ message: "Invalid request, missing parameters!" });
+  }
+
+  if (!isValidObjectId(userId)) {
+    res.status(400).json({ message: "Invalid User id!" });
+  }
+
+  const user = await User.findById(userId)
+  if (!user) {
+    res.status(401).json({ message: "User not found!" });
+  }
+
+  if (user.verified) {
+    res.status(409).json({ message: "This Account is already verified!" })
+  }
+
+  const token = await VerificationToken.findOne({ owner: user._id })
+  if (!token) {
+    res.status(404).json({ message: "User not found!" });
+  }
+
+  const isMatched = await token.compareToken(otp)
+  if (!isMatched) {
+    res.status(400).json({ message: "Please provide a valid token!" });
+  }
+
+  user.verified = true;
+
+  // await VerificationToken.findByIdAndDelete(token._id)
+  if (token) {
+    await VerificationToken.findByIdAndDelete(token._id);
+  }
+  await user.save()
+
+
+  mailTransport().sendMail({
+    from: 'emailverificatnio@email.com',
+    to: user.email,
+    subject: "Welcome Email",
+    html: plainEmailTemplate(
+      "Email Verified Succesfully",
+      "Enjoy and stay connected!"
+    ),
+  });
+  const { _id, name, email, photo, phone, bio } = user;
+  res.status(200).json({
+    success: true,
+    message: "Your email is verified",
+    user: {
+      _id,
+      name,
+      email,
+      photo,
+      phone,
+      bio,
+    },
+  });
+});
+
+
+
 module.exports = {
   googleSignup,
   registerUser,
   loginUser,
   logout,
+  verifyEmail
 };

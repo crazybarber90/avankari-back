@@ -7,6 +7,7 @@ const {
   registerUser,
   loginUser,
   logout,
+  verifyEmail,
   // getUser,
   // loginStatus,
   // updateUser,
@@ -20,6 +21,7 @@ const {
 router.post("/googleSignUp", googleSignup);
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+router.post("/verify-email", verifyEmail);
 router.get("/logout", logout);
 // router.get("/getuser", protect, getUser);
 // router.get("/loggedin", loginStatus);
