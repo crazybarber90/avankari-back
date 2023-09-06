@@ -23,7 +23,7 @@ const userSchema = mongoose.Schema(
       minLength: [6, "Password must be up to 6 characters"],
       // maxLength: [23, "Password must not be more then 23 characters"],
     },
-    verified:{
+    verified: {
       type: Boolean,
       default: false,
       required: true,
@@ -32,6 +32,14 @@ const userSchema = mongoose.Schema(
       type: String,
       required: [true, "Please add a photo"],
       default: "https://i.ibb.co/4pDNDk1/avatar.png",
+    },
+    resettoken: {
+      type: String,
+      required: false,
+    },
+    resettokenExpiration: {
+      type: Date,
+      required: false,
     },
     phone: {
       type: String,
@@ -128,6 +136,13 @@ userSchema.pre("save", async function (next) {
   this.password = hashedPassword;
   next();
 });
+
+
+userSchema.methods.comparePassword = async function (password) {
+  const result = await bcrypt.compare(password, this.password);
+  return result;
+};
+
 
 const User = mongoose.model("User", userSchema);
 

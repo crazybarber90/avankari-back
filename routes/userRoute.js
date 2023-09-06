@@ -8,13 +8,11 @@ const {
   loginUser,
   logout,
   verifyEmail,
-  // getUser,
-  // loginStatus,
-  // updateUser,
-  // changePassword,
   // forgotPassword,
-  // resetpassword,
+  resetPassword,
+  resetPasswordConfirm
 } = require("../controllers/userController");
+const { isResetTokenValid } = require("../middleWare/authMiddleware");
 
 // WHEN WE CREATE ROUTE FILE , WE MUST REQUIRE THAT IN SERVER.JS
 
@@ -23,11 +21,9 @@ router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.post("/verify-email", verifyEmail);
 router.get("/logout", logout);
-// router.get("/getuser", protect, getUser);
-// router.get("/loggedin", loginStatus);
-// router.patch("/updateuser", protect, updateUser);
-// router.patch("/changepassword", protect, changePassword);
-// router.post("/forgotpassword", forgotPassword);
-// router.put("/resetpassword/:resetToken", resetpassword);
+// router.post("/forgot-password", forgotPassword);
+// router.post("/reset-password", isResetTokenValid, resetPassword);
+router.post("/resetPassword", resetPassword);
+router.post("/resetPasswordConfirm", resetPasswordConfirm);
 
 module.exports = router;

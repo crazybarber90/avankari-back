@@ -1,6 +1,9 @@
 const asyncHandler = require("express-async-handler");
-const User = require("../models/userModel");
 const jwt = require("jsonwebtoken");
+const { sendError } = require("../Utils/helper");
+const { isValidObjectId } = require("mongoose");
+const User = require("../models/userModel");
+const ResetToken = require("../models/resetToken");
 
 const protect = asyncHandler(async (req, res, next) => {
   try {
@@ -27,4 +30,31 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 });
 
-module.exports = protect;
+const isResetTokenValid = asyncHandler(async (req, res, next) => {
+  const { token, id } = req.query // get token and id from URL
+
+  if (!token || !id) return sendError(res, "Invalid request!")
+
+  if (!isValidObjectId(id)) return sendError(res, "Invalid User!")
+
+  const user = await User.findById(id)
+  if (!user) return sendError(res, "User not found!")
+
+  const resetToken = await ResetToken.findOne({ owner: user._id })
+  if (!resetToken) return sendError(res, "Reset token not found!")
+
+  const isValid = await resetToken.compareToken(token)
+  if (!isValid) return sendError(res, "Reset token is not valid!")
+
+  req.user = user;
+  next()
+
+})
+
+// module.exports = protect;
+
+
+module.exports = {
+  protect,
+  isResetTokenValid,
+};

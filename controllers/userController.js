@@ -1,15 +1,17 @@
 const asyncHandler = require("express-async-handler");
-const User = require("../models/userModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { generateOTP, mailTransport, generateEmailTemplate, plainEmailTemplate } = require("../Utils/mail");
+const { generateOTP, mailTransport, generateEmailTemplate, plainEmailTemplate, plainEmailTemplate2, plainEmailTemplate3, generatePasswordResetTemplate } = require("../Utils/mail");
 const VerificationToken = require("../models/verificationToken");
 const { request } = require("express");
 const { isValidObjectId } = require("mongoose");
+const ResetToken = require("../models/resetToken");
+const crypto = require("crypto");
+const { createRandomBytes, sendError, generateCode } = require("../Utils/helper");
 // const Token = require("../models/tokenModel");
 // const crypto = require("crypto");
 // const sendEmail = require("../utils/sendEmail");
-
+const User = require("../models/userModel")
 //GENERATE JWT TOKEN
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "1d" });
@@ -97,7 +99,7 @@ const registerUser = asyncHandler(async (req, res) => {
   await verificationToken.save()
 
   mailTransport().sendMail({
-    from: 'emailverificatnio@email.com',
+    from: 'pepy90aa@gmail.com',
     to: user.email,
     subject: "Verify Your Email Account",
     html: generateEmailTemplate(OTP)
@@ -165,173 +167,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 });
 
-
-// const registerUser = asyncHandler(async (req, res) => {
-//   const { name, email, password, photo, googleSignIn ,accessToken } = req.body;
-
-//   if (!name || !email) {
-//     res.status(400);
-//     throw new Error("Please provide name and email");
-//   }
-
-//   if (!googleSignIn) {
-//     if (!password || password.length < 6) {
-//       res.status(400);
-//       throw new Error("Password must be at least 6 characters");
-//     }
-
-//     const userExist = await User.findOne({ email });
-//     if (userExist) {
-//       res.status(400);
-//       throw new Error("Email is already registered");
-//     }
-//   }
-
-//   const userFields = {
-//     name,
-//     email,
-//     photo,
-//   };
-
-//   if (!googleSignIn) {
-//     userFields.password = password;
-//   }
-
-//   const user = await User.create(userFields);
-
-//   const token = generateToken(user._id);
-
-//   res.cookie("token", token, {
-//     path: "/",
-//     httpOnly: true,
-//     expires: new Date(Date.now() + 1000 * 86400),
-//     sameSite: "none",
-//     secure: true,
-//   });
-
-//   if (user) {
-//     const {
-//       _id,
-//       name,
-//       email,
-//       photo,
-//       phone,
-//       gender,
-//       hair,
-//       eyes,
-//       braces,
-//       shirt,
-//       pants,
-//       chest,
-//       sneakers,
-//       boots,
-//       sandal,
-//       city,
-//       place,
-//       bio,
-//     } = user;
-//     res.status(201).json({
-//       _id,
-//       name,
-//       email,
-//       photo,
-//       phone,
-//       //-------------------
-//       gender,
-//       hair,
-//       eyes,
-//       braces,
-//       shirt,
-//       pants,
-//       chest,
-//       sneakers,
-//       boots,
-//       sandal,
-//       city,
-//       place,
-//       //-------------------
-//       bio,
-//       token,
-//     });
-//   } else {
-//     res.status(400);
-//     throw new Error("Invalid user data");
-//   }
-// });
-
-
-// const registerUser = asyncHandler(async (req, res) => {
-//   const { name, email, password, photo, googleSignIn, accessToken } = req.body;
-
-//   if (!name || !email) {
-//     res.status(400);
-//     throw new Error("Please provide name and email");
-//   }
-
-//   if (!googleSignIn) {
-//     if (!password || password.length < 6) {
-//       res.status(400);
-//       throw new Error("Password must be at least 6 characters");
-//     }
-
-//     const userExist = await User.findOne({ email });
-//     if (userExist) {
-//       res.status(400);
-//       throw new Error("Email is already registered");
-//     }
-//   }
-
-//   const userFields = {
-//     name,
-//     email,
-//     photo,
-//   };
-
-//   if (!googleSignIn) {
-//     userFields.password = password;
-//   }
-
-//   const user = await User.create(userFields);
-//   const token = generateToken(user._id);
-
-//   res.cookie("token", token, {
-//     path: "/",
-//     httpOnly: true,
-//     expires: new Date(Date.now() + 1000 * 86400),
-//     sameSite: "none",
-//     secure: true,
-//   });
-
-//   res.status(201).json({
-//     _id: user._id,
-//     name: user.name,
-//     email: user.email,
-//     photo: user.photo,
-//     phone: user.phone,
-//     gender: user.gender,
-//     hair: user.hair,
-//     eyes: user.eyes,
-//     braces: user.braces,
-//     shirt: user.shirt,
-//     pants: user.pants,
-//     chest: user.chest,
-//     sneakers: user.sneakers,
-//     boots: user.boots,
-//     sandal: user.sandal,
-//     city: user.city,
-//     place: user.place,
-//     bio: user.bio,
-//     token,
-//   });
-// });
-
-
-
-
 // ------------------ LOGIN USER -----------------------------------------
-
-
-
 const loginUser = asyncHandler(async (req, res) => {
   // res.status(200).json({ message: "hello" });
   const { email, password } = req.body;
@@ -383,7 +219,6 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 // ------------------ LOGOUT USER -----------------------------------------
-
 const logout = asyncHandler(async (req, res) => {
   // SEND HTTP-only cookie to Frontend
   res.cookie("token", "", {
@@ -399,58 +234,55 @@ const logout = asyncHandler(async (req, res) => {
 });
 
 
-
+// ------------------ VERIFY REGISTER EMAIL -----------------------------------------
 const verifyEmail = asyncHandler(async (req, res) => {
   const { userId, otp } = req.body;
 
-
   if (!userId || !otp.trim()) {
-    res.status(400).json({ message: "Invalid request, missing parameters!" });
+    return res.status(400).json({ success: false, message: "Invalid request, missing parameters!" });
   }
 
   if (!isValidObjectId(userId)) {
-    res.status(400).json({ message: "Invalid User id!" });
+    return res.status(400).json({ success: false, message: "Invalid User id!" });
   }
 
   const user = await User.findById(userId)
   if (!user) {
-    res.status(401).json({ message: "User not found!" });
+    return res.status(401).json({ success: false, message: "User not found!" });
   }
 
   if (user.verified) {
-    res.status(409).json({ message: "This Account is already verified!" })
+    return res.status(409).json({ success: false, message: "This Account is already verified!" });
   }
 
   const token = await VerificationToken.findOne({ owner: user._id })
   if (!token) {
-    res.status(404).json({ message: "User not found!" });
+    return res.status(404).json({ success: false, message: "Verification token not found!" });
   }
 
   const isMatched = await token.compareToken(otp)
   if (!isMatched) {
-    res.status(400).json({ message: "Please provide a valid token!" });
+    return res.status(400).json({ success: false, message: "Please provide a valid token!" });
   }
 
   user.verified = true;
 
-  // await VerificationToken.findByIdAndDelete(token._id)
-  if (token) {
-    await VerificationToken.findByIdAndDelete(token._id);
-  }
+  await VerificationToken.findByIdAndDelete(token._id);
+
   await user.save()
 
-
   mailTransport().sendMail({
-    from: 'emailverificatnio@email.com',
+    from: 'pepy90aa@gmail.com',
     to: user.email,
     subject: "Welcome Email",
     html: plainEmailTemplate(
-      "Email Verified Succesfully",
+      "Email Verified Successfully",
       "Enjoy and stay connected!"
     ),
   });
+
   const { _id, name, email, photo, phone, bio } = user;
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Your email is verified",
     user: {
@@ -464,12 +296,127 @@ const verifyEmail = asyncHandler(async (req, res) => {
   });
 });
 
+// ------------------ FORGOT PASSWORD SEND MAIL -----------------------------------------
+// const forgotPassword = asyncHandler(async (req, res) => {
+//   const { email } = req.body;
+//   // if (!email) return res.status(400).json({ success: false, message: "Please provide a valid email!" });
+//   if (!email) return sendError(res, "Please provide a valid email!");
 
+//   // return res.send("USER")
+//   // USER
+//   const user = await User.findOne({ email })
+//   // if (!user) return res.status(400).json({ success: false, message: "User not found, Invalid request!" });
+//   if (!user) return sendError(res, "User not found, Invalid request!");;
+
+//   // TOKEN
+//   const token = await ResetToken.findOne({ owner: user._id });
+//   // if (token) return res.status(400).json({ success: false, message: "Only after one hour you can request for another token!" });
+//   if (token) return sendError(res, "Only after one hour you can request for another token!");
+
+//   const randomBytes = await createRandomBytes()
+
+//   const resetToken = new ResetToken({ owner: user._id, token: randomBytes })
+
+//   await resetToken.save()
+
+//   mailTransport().sendMail({
+//     from: 'pepy90aa@gmail.com',
+//     to: user.email,
+//     subject: "Password Reset Email",
+//     html: generatePasswordResetTemplate(
+//       `http://192.168.0.13:4000/api/users/reset-password?token=${randomBytes}&id=${user._id}`
+//     ),
+//   });
+
+//   res.json({ success: true, message: "Password reset link sent to your email" })
+// });
+
+
+// ------------------ FORGOT PASSWORD SEND 5 DIDGETS TO MAIL -----------------------------------------
+const resetPassword = asyncHandler(async (req, res) => {
+  // return console.log(":TTOOOOOOOOOOOOOOO");
+  try {
+
+    const email = req.body.email
+
+    const existingUser = await User.findOne({ email })
+
+    if (!existingUser) {
+      console.error({ success: false, message: 'There was an Error, User not found' })
+      return res.send({ success: false, message: 'If user exists , an email was sent' })
+    }
+
+    const token = await generateCode(5)
+    existingUser.resettoken = token;
+    existingUser.resettokenExpiration = Date.now() + 3600000;
+    await existingUser.save();
+
+    await mailTransport().sendMail({
+      from: 'pepy90aa@gmail.com',
+      to: existingUser.email,
+      subject: "Your password token",
+      html: plainEmailTemplate2(token)
+    });
+
+    return res.send({ success: true, message: "Email sent" })
+  } catch (error) {
+    console.error(error)
+  }
+
+});
+
+// ------------------ RESET AND UPDATE NEW PASSWORD IN DB-----------------------------------------
+const resetPasswordConfirm = asyncHandler(async (req, res) => {
+  // return console.log("REQUEST IZ FUNKCIJE", req.body)
+  console.log("USERRRRRRRRRRRRRRRRRRRRR", req.body)
+
+  try {
+    const email = req.body.email.email
+    const code = req.body.code
+    const password = req.body.newPassword
+    const user = await User.findOne({ email })
+
+    console.log("USERRRRRRRRRRRRRRRRRRRRR", user)
+
+    if (!user || user.
+      resettoken !== code.toUpperCase()) {
+      console.log("NIJE ISTO")
+      return res.send({ success: false, message: "Incorect 5 didgets code" })
+    }
+    // if (user.resettoken !== code) {
+    //   return res.status(400).send({ success: false, message: "Incorect 5 didgets code" })
+    // }
+
+    if (user.resettokenExpiration < new Date()) {
+      return res.status(400).send({ success: false, message: "Token has expired" })
+    }
+
+    user.password = password;
+    user.token = '';
+    user.tokenExpiration = null;
+    await user.save()
+
+    await mailTransport().sendMail({
+      from: 'pepy90aa@gmail.com',
+      to: user.email,
+      subject: "Password Reset Successfully",
+      html: plainEmailTemplate3(email, password)
+    });
+
+    return res.status(200).send({ success: true })
+  } catch (error) {
+    console.error(error)
+    return res.status(500).send({ success: false, message: "An error ocured. Please try again LATERRRRRRRR" })
+  }
+})
 
 module.exports = {
   googleSignup,
   registerUser,
   loginUser,
+  // forgotPassword,
+  resetPassword,
   logout,
-  verifyEmail
+  verifyEmail,
+  resetPasswordConfirm,
 };
