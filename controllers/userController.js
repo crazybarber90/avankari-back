@@ -11,7 +11,17 @@ const { createRandomBytes, sendError, generateCode } = require("../Utils/helper"
 // const Token = require("../models/tokenModel");
 // const crypto = require("crypto");
 // const sendEmail = require("../utils/sendEmail");
-const User = require("../models/userModel")
+const User = require("../models/userModel");
+const UserDetails = require("../models/userDetailsModel");
+const { fileSizeFormatter } = require("../Utils/fileUpload");
+const cloudinary = require("cloudinary").v2;
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+
 //GENERATE JWT TOKEN
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "1d" });
@@ -38,6 +48,7 @@ const googleSignup = asyncHandler(async (req, res) => {
         photo,
         // You can generate a random password or use a token here
         password: "random_generated_password_or_token",
+        verified: "true",
       });
 
       user = newUser;
@@ -53,7 +64,8 @@ const googleSignup = asyncHandler(async (req, res) => {
       email: user.email,
       photo: user.photo,
       phone: user.phone,
-      // Other user fields...
+      verified: user.verified,
+      // user,
       token,
     });
   } catch (error) {
@@ -63,6 +75,7 @@ const googleSignup = asyncHandler(async (req, res) => {
 });
 
 // ------------------ REGISTER USER -----------------------------------------
+
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
   // VALIDATION
@@ -124,19 +137,6 @@ const registerUser = asyncHandler(async (req, res) => {
       email,
       photo,
       phone,
-      gender,
-      hair,
-      eyes,
-      braces,
-      shirt,
-      pants,
-      chest,
-      sneakers,
-      boots,
-      sandal,
-      city,
-      place,
-      bio,
     } = user;
     res.status(201).json({
       _id,
@@ -144,21 +144,6 @@ const registerUser = asyncHandler(async (req, res) => {
       email,
       photo,
       phone,
-      //-------------------
-      gender,
-      hair,
-      eyes,
-      braces,
-      shirt,
-      pants,
-      chest,
-      sneakers,
-      boots,
-      sandal,
-      city,
-      place,
-      //-------------------
-      bio,
       token,
     });
   } else {
@@ -168,6 +153,7 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 // ------------------ LOGIN USER -----------------------------------------
+
 const loginUser = asyncHandler(async (req, res) => {
   // res.status(200).json({ message: "hello" });
   const { email, password } = req.body;
@@ -202,15 +188,17 @@ const loginUser = asyncHandler(async (req, res) => {
   });
 
   if (user && passwordIsCorrect) {
-    const { _id, name, email, photo, phone, bio } = user;
+    const { _id, name, email, photo, facebookUrl, instagramUrl, phoneNumber, verified } = user;
     res.status(200).json({
       _id,
       name,
       email,
       photo,
-      phone,
-      bio,
       token,
+      facebookUrl,
+      instagramUrl,
+      phoneNumber,
+      verified
     });
   } else {
     res.status(400);
@@ -219,6 +207,7 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 // ------------------ LOGOUT USER -----------------------------------------
+
 const logout = asyncHandler(async (req, res) => {
   // SEND HTTP-only cookie to Frontend
   res.cookie("token", "", {
@@ -235,6 +224,7 @@ const logout = asyncHandler(async (req, res) => {
 
 
 // ------------------ VERIFY REGISTER EMAIL -----------------------------------------
+
 const verifyEmail = asyncHandler(async (req, res) => {
   const { userId, otp } = req.body;
 
@@ -267,6 +257,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
   user.verified = true;
 
+  // OVO MOZDA MORA DA SE PREBACI POSLE SLANJA MAILA
   await VerificationToken.findByIdAndDelete(token._id);
 
   await user.save()
@@ -295,41 +286,6 @@ const verifyEmail = asyncHandler(async (req, res) => {
     },
   });
 });
-
-// ------------------ FORGOT PASSWORD SEND MAIL -----------------------------------------
-// const forgotPassword = asyncHandler(async (req, res) => {
-//   const { email } = req.body;
-//   // if (!email) return res.status(400).json({ success: false, message: "Please provide a valid email!" });
-//   if (!email) return sendError(res, "Please provide a valid email!");
-
-//   // return res.send("USER")
-//   // USER
-//   const user = await User.findOne({ email })
-//   // if (!user) return res.status(400).json({ success: false, message: "User not found, Invalid request!" });
-//   if (!user) return sendError(res, "User not found, Invalid request!");;
-
-//   // TOKEN
-//   const token = await ResetToken.findOne({ owner: user._id });
-//   // if (token) return res.status(400).json({ success: false, message: "Only after one hour you can request for another token!" });
-//   if (token) return sendError(res, "Only after one hour you can request for another token!");
-
-//   const randomBytes = await createRandomBytes()
-
-//   const resetToken = new ResetToken({ owner: user._id, token: randomBytes })
-
-//   await resetToken.save()
-
-//   mailTransport().sendMail({
-//     from: 'pepy90aa@gmail.com',
-//     to: user.email,
-//     subject: "Password Reset Email",
-//     html: generatePasswordResetTemplate(
-//       `http://192.168.0.13:4000/api/users/reset-password?token=${randomBytes}&id=${user._id}`
-//     ),
-//   });
-
-//   res.json({ success: true, message: "Password reset link sent to your email" })
-// });
 
 
 // ------------------ FORGOT PASSWORD SEND 5 DIDGETS TO MAIL -----------------------------------------
@@ -366,9 +322,9 @@ const resetPassword = asyncHandler(async (req, res) => {
 });
 
 // ------------------ RESET AND UPDATE NEW PASSWORD IN DB-----------------------------------------
+
 const resetPasswordConfirm = asyncHandler(async (req, res) => {
   // return console.log("REQUEST IZ FUNKCIJE", req.body)
-  console.log("USERRRRRRRRRRRRRRRRRRRRR", req.body)
 
   try {
     const email = req.body.email.email
@@ -376,11 +332,9 @@ const resetPasswordConfirm = asyncHandler(async (req, res) => {
     const password = req.body.newPassword
     const user = await User.findOne({ email })
 
-    console.log("USERRRRRRRRRRRRRRRRRRRRR", user)
-
     if (!user || user.
       resettoken !== code.toUpperCase()) {
-      console.log("NIJE ISTO")
+      // console.log("NIJE ISTO")
       return res.send({ success: false, message: "Incorect 5 didgets code" })
     }
     // if (user.resettoken !== code) {
@@ -410,13 +364,150 @@ const resetPasswordConfirm = asyncHandler(async (req, res) => {
   }
 })
 
+
+//=============================== USER DETAILS ==================================================
+
+const updateUserDetails = asyncHandler(async (req, res) => {
+
+  try {
+    // Dohvatite podatke iz tela zahteva (credentials)
+    const { city, currentPlace, donjideo, gornjideo, kosa, obuca, oci, pol } = req.body;
+
+    // Proverite da li su city i currentPlace obavezna polja
+    if (!city || !currentPlace) {
+      return res.status(400).json({ message: 'City and currentPlace are required fields.' });
+    }
+
+    // Korisnički ID je već dostupan u req.user.id zahvaljujući protect middleware-u
+    const userId = req.user.id;
+
+    // Proverite da li već postoji dokument UserDetails za trenutnog korisnika
+    let userDetails = await UserDetails.findOne({ owner: userId });
+
+    if (!userDetails) {
+      // Ako ne postoji, kreirajte novi dokument UserDetails
+      userDetails = new UserDetails({
+        city,
+        currentPlace,
+        donjideo,
+        gornjideo,
+        kosa,
+        obuca,
+        oci,
+        pol,
+        owner: userId,
+      });
+
+      await userDetails.save();
+    } else {
+      // Ako postoji, ažurirajte postojeći dokument
+      userDetails.city = city;
+      userDetails.currentPlace = currentPlace;
+      userDetails.donjideo = donjideo;
+      userDetails.gornjideo = gornjideo;
+      userDetails.kosa = kosa;
+      userDetails.obuca = obuca;
+      userDetails.oci = oci;
+      userDetails.pol = pol;
+
+      await userDetails.save();
+    }
+
+    res.status(200).json({ message: 'User details updated successfully.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'An error occurred while updating user details.' });
+  }
+});
+
+//=============================== UPLOAD PHOTO OF USER ==================================================
+
+const uploadUserPhoto = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const user = await User.findById(userId);
+  const name = user.name.trim()
+
+  try {
+    const image = req.file; // slika iz zahteva, sačuvana pomoću multer-a
+
+    if (!image) {
+      // console.log("NEMA SLIKE")
+      return res.status(400).json({ success: false, message: 'Niste poslali sliku.' });
+    }
+
+    // SAVING FILE (image) TO CLOUDINARY
+    const uploadOptions = {
+      //folder u cloudinary 
+      folder: "User_Avatar",
+      //cloud name
+      upload_preset: 'hfmyjqhf',
+      // da za svakog usera ubacije posebnu sliku/ i da overwrittuje za istog
+      public_id: `${name} - avatar`,
+      allowed_formats: ['png', 'jpg', 'jpeg', 'svg', 'ico', 'jfif', 'webp']
+    };
+
+    try {
+      const result = await cloudinary.uploader.upload(image.path, uploadOptions);
+
+      //ovde mogu da obrisem buffer , multer memorija slike u binarnom obliku nako save na cloudinary
+      // Postavljanjem buffer-a na null
+      // req.file.buffer = null;
+
+      const fileData = {
+        filePath: result.secure_url,
+        fileSize: fileSizeFormatter(result.bytes),
+      };
+
+      if (fileData.filePath) {
+        user.photo = fileData.filePath;
+        await user.save();
+      }
+      return res.status(200).json({ success: true, message: 'Korisnik je uspešno ažuriran.', user });
+    } catch (error) {
+      console.error("Greška prilikom otpremanja slike na Cloudinary", error);
+      res.status(500);
+      throw new Error("Slika nije mogla da bude otpremljena");
+    }
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Došlo je do greške prilikom ažuriranja korisnika.', error });
+  }
+});
+
+
+const updateSocials = asyncHandler(async (req, res) => {
+  // return console.log("REQ", req.body)
+  // hfmyjqhf
+  const userId = req.user.id;
+  const user = await User.findById(userId);
+  try {
+    const { facebookUrl, instagramUrl, phoneNumber } = req.body;
+
+    if (facebookUrl) {
+      user.facebookUrl = facebookUrl;
+    }
+    if (instagramUrl) {
+      user.instagramUrl = instagramUrl;
+    }
+    if (phoneNumber) {
+      user.phoneNumber = phoneNumber;
+    }
+
+    await user.save();
+    return res.status(200).json({ success: true, message: 'Korisnik je uspešno ažuriran.', user });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Došlo je do greške prilikom ažuriranja korisnika.', error });
+  }
+});
+
 module.exports = {
   googleSignup,
   registerUser,
   loginUser,
-  // forgotPassword,
   resetPassword,
   logout,
   verifyEmail,
   resetPasswordConfirm,
+  updateUserDetails,
+  uploadUserPhoto,
+  updateSocials
 };

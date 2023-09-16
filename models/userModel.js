@@ -41,79 +41,23 @@ const userSchema = mongoose.Schema(
       type: Date,
       required: false,
     },
-    phone: {
+    facebookUrl: {
       type: String,
-      default: "+381",
+      required: false,
+    },
+    instagramUrl: {
+      type: String,
+      required: false,
+    },
+    phoneNumber: {
+      type: String,
+      required: false,
     },
     //---------------------- OPTIONAL
-    //pol
-    gender: {
-      type: String,
-      trim: true,
-    },
-    //kosa - boja
-    hair: {
-      type: String,
-      trim: true,
-    },
-    //oci - boja
-    eyes: {
-      type: String,
-      trim: true,
-    },
-    //proteza - da/ne
-    braces: {
-      type: String,
-      trim: true,
-    },
-    //majica - boja
-    shirt: {
-      type: String,
-      trim: true,
-    },
-    //pantalone - boja
-    pants: {
-      type: String,
-      trim: true,
-    },
-    //suknja - boja
-    chest: {
-      type: String,
-      trim: true,
-    },
-    //patike - boja
-    sneakers: {
-      type: String,
-      trim: true,
-    },
-    //cipele - boja
-    boots: {
-      type: String,
-      trim: true,
-    },
-    //sandale - boja
-    sandal: {
-      type: String,
-      trim: true,
-    },
-    //grad
-    city: {
-      type: String,
-      trim: true,
-    },
-    //mesto - npr cafe98
-    place: {
-      type: String,
-      default: "",
-    },
 
-    //----------------------------------------------------
 
-    bio: {
-      type: String,
-      maxLength: [250, "Password must not be more then 250 characters"],
-      default: "bio",
-    },
+
+
   },
   {
     timestamps: true,

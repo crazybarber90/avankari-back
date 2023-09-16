@@ -6,8 +6,14 @@ const User = require("../models/userModel");
 const ResetToken = require("../models/resetToken");
 
 const protect = asyncHandler(async (req, res, next) => {
+  // return console.log("REQ", req)
   try {
-    const token = req.cookies.token;
+    // const token = req.cookies.token;
+    // const token = req.headers.authorization.split(' ')[1]; // Pretpostavlja se da koristite Bearer token
+    const token = req.headers.authorization.replace('Bearer ', '');
+    // console.log('Received token:', token);
+
+
     if (!token) {
       res.status(402);
       throw new Error("Not authorized, please login");
@@ -17,12 +23,15 @@ const protect = asyncHandler(async (req, res, next) => {
     const verified = jwt.verify(token, process.env.JWT_SECRET);
     // GET USER ID FROM TOKEN
     user = await User.findById(verified.id).select("-password");
+    // console.log('user iz authmidleware:', user);
 
     if (!user) {
       res.status(402);
+      // console.log("NEMA JUSERA")
       throw new Error("User not found");
     }
     req.user = user;
+    console.log("------------- ima usera iz protect", user.email)
     next();
   } catch (error) {
     res.status(402);

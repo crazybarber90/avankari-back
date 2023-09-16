@@ -1,6 +1,5 @@
 const express = require("express");
 const router = express.Router();
-// const protect = require("../middleWare/authMiddleware");
 
 const {
   googleSignup,
@@ -8,12 +7,15 @@ const {
   loginUser,
   logout,
   verifyEmail,
-  // forgotPassword,
   resetPassword,
-  resetPasswordConfirm
+  resetPasswordConfirm,
+  updateUserDetails,
+  uploadUserPhoto,
+  updateSocials
 } = require("../controllers/userController");
-const { isResetTokenValid } = require("../middleWare/authMiddleware");
 
+const { protect } = require("../middleWare/authMiddleware");
+const { upload } = require("../Utils/fileUpload");
 // WHEN WE CREATE ROUTE FILE , WE MUST REQUIRE THAT IN SERVER.JS
 
 router.post("/googleSignUp", googleSignup);
@@ -21,9 +23,12 @@ router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.post("/verify-email", verifyEmail);
 router.get("/logout", logout);
-// router.post("/forgot-password", forgotPassword);
-// router.post("/reset-password", isResetTokenValid, resetPassword);
+
 router.post("/resetPassword", resetPassword);
 router.post("/resetPasswordConfirm", resetPasswordConfirm);
+router.post("/update-user", protect, updateUserDetails);
+// adding photo, and social networks
+router.put("/upload-user-photo", protect, upload.single("image"), uploadUserPhoto);
+router.post("/update-socials", protect, updateSocials);
 
 module.exports = router;

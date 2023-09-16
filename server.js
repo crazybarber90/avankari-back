@@ -6,7 +6,7 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const errorHandler = require("./middleWare/errorMiddleware");
 const cookieParser = require("cookie-parser");
-// const path = require("path");
+const path = require("path");
 
 //IMPORT ROUTES
 const userRoute = require("./routes/userRoute");
@@ -24,10 +24,13 @@ app.use(
     // origin: ["http://localhost:4000", "https://pinvent-app.vercel.app"],
     // origin: ["http://192.168.0.14:4000", "https://pinvent-app.vercel.app"],
     origin: ["http://192.168.0.13:4000", "https://pinvent-app.vercel.app"],
-      //  POVEZI TELEFON NA WIFI ISTI KAO I KOMP !!!!!!!
+    //  POVEZI TELEFON NA WIFI ISTI KAO I KOMP !!!!!!!
     credentials: true, // enable sending credentials from backend to frontend
   })
 );
+
+// DEFINE ROUTE WHERE WILL BE SAVED IMAGES
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Routes Middlewares
 app.use("/api/users", userRoute);
