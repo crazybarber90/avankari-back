@@ -53,11 +53,10 @@ const userSchema = mongoose.Schema(
       type: String,
       required: false,
     },
-    //---------------------- OPTIONAL
-
-
-
-
+    table: {
+      type: String,
+      required: false,
+    },
   },
   {
     timestamps: true,

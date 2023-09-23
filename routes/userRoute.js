@@ -11,7 +11,10 @@ const {
   resetPasswordConfirm,
   updateUserDetails,
   uploadUserPhoto,
-  updateSocials
+  updateSocials,
+  updateTable,
+  searchByTable,
+  searchUser,
 } = require("../controllers/userController");
 
 const { protect } = require("../middleWare/authMiddleware");
@@ -30,5 +33,11 @@ router.post("/update-user", protect, updateUserDetails);
 // adding photo, and social networks
 router.put("/upload-user-photo", protect, upload.single("image"), uploadUserPhoto);
 router.post("/update-socials", protect, updateSocials);
+router.post("/update-table", protect, updateTable);
+
+//SEARCH
+router.post("/search-by-table", protect, searchByTable);
+router.post("/search-user", protect, searchUser);
+
 
 module.exports = router;

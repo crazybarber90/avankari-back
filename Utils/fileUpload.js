@@ -3,15 +3,15 @@ const multer = require("multer");
 // SHOULD REQUIRE THAT IN server.js AND productRoute.js as part of route
 
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads");
-  },
-  filename: function (req, file, cb) {
-    cb(
-      null,
-      new Date().toISOString().replace(/:/g, "_") + "_" + file.originalname
-    ); //26/07/2023
-  },
+  // destination: function (req, file, cb) {
+  //   cb(null, "uploads");
+  // },
+  // filename: function (req, file, cb) {
+  //   cb(
+  //     null,
+  //     new Date().toISOString().replace(/:/g, "_") + "_" + file.originalname
+  //   ); //26/07/2023
+  // },
 });
 
 // ===================== SPECIFY FILE FORMAT THAT CAN BE SAVED =====================

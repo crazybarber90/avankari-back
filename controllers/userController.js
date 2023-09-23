@@ -65,6 +65,10 @@ const googleSignup = asyncHandler(async (req, res) => {
       photo: user.photo,
       phone: user.phone,
       verified: user.verified,
+      facebookUrl: user.facebookUrl,
+      instagramUrl: user.instagramUrl,
+      phoneNumber: user.phoneNumber,
+      table: user.table,
       // user,
       token,
     });
@@ -188,7 +192,7 @@ const loginUser = asyncHandler(async (req, res) => {
   });
 
   if (user && passwordIsCorrect) {
-    const { _id, name, email, photo, facebookUrl, instagramUrl, phoneNumber, verified } = user;
+    const { _id, name, email, photo, facebookUrl, instagramUrl, phoneNumber, table, verified } = user;
     res.status(200).json({
       _id,
       name,
@@ -198,7 +202,8 @@ const loginUser = asyncHandler(async (req, res) => {
       facebookUrl,
       instagramUrl,
       phoneNumber,
-      verified
+      table,
+      verified,
     });
   } else {
     res.status(400);
@@ -451,7 +456,8 @@ const uploadUserPhoto = asyncHandler(async (req, res) => {
 
       //ovde mogu da obrisem buffer , multer memorija slike u binarnom obliku nako save na cloudinary
       // Postavljanjem buffer-a na null
-      // req.file.buffer = null;
+      req.file.buffer = null;
+      // console.log(req.file.buffer)
 
       const fileData = {
         filePath: result.secure_url,
@@ -473,6 +479,7 @@ const uploadUserPhoto = asyncHandler(async (req, res) => {
   }
 });
 
+//=============================== UPDATE SOCIALS ==================================================
 
 const updateSocials = asyncHandler(async (req, res) => {
   // return console.log("REQ", req.body)
@@ -499,6 +506,166 @@ const updateSocials = asyncHandler(async (req, res) => {
   }
 });
 
+//=============================== UPDATE TABLICE ==================================================
+
+const updateTable = asyncHandler(async (req, res) => {
+  // return console.log("TABLE ", req.body)
+  // hfmyjqhf
+  const userId = req.user.id;
+  const user = await User.findById(userId);
+  try {
+    const { table } = req.body;
+
+    if (table) {
+      user.table = table;
+    }
+
+    // MORAM DA PROVERIM DA LI POSTOJE TE TABLE U BAZI
+    // DA RADIM TRIM NA SVE OSIM BROJEVA I SLOVA
+    // DA NAPISEM PORUKU AKO POSTOJE TAKVE TABLE , DA KONTAKTIRA TEHNICKU PODRSKU
+    await user.save();
+    return res.status(200).json({ success: true, message: 'Korisnik je uspešno ažuriran.', user });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Došlo je do greške prilikom ažuriranja korisnika.', error });
+  }
+});
+
+//=============================== SEARCH BY TABLE ==================================================
+
+const searchByTable = asyncHandler(async (req, res) => {
+
+  try {
+    const { table } = req.body;
+    // Trazenje korisnika koji imaju datu tablicu
+    const usersWithTable = await User.find({ table });
+
+    // Ako nema korisnika sa datom tablicom
+    if (usersWithTable.length === 0) {
+      return res.status(404).json({ success: false, message: 'Nema korisnika sa trazenom tablicom.' });
+    }
+
+    // Dodavanje is userdetails => user objektu i vracanje na front
+    const usersWithDetails = await Promise.all(usersWithTable.map(async (user) => {
+      const userDetails = await UserDetails.findOne({ owner: user._id });
+      return {
+        ...user._doc, // Sve osnovne informacije o korisniku
+        currentPlace: userDetails.currentPlace, // Dodatne informacije
+        city: userDetails.city,
+      };
+    }));
+
+    // Ako ima korisnika sa datom tablicom, vratite ih kao niz u odgovoru
+    return res.status(200).json({ success: true, users: usersWithDetails });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Došlo je do greške prilikom pretrage korisnika.', error });
+  }
+});
+
+
+//=============================== SEARCH USER ==================================================
+
+//DOBAR
+// const searchUser = asyncHandler(async (req, res) => {
+//   console.log('REQQQQQQQQ', req.body);
+
+//   // Provera da li postoje city i currentPlace u req.body
+//   const { city, currentPlace, ...otherParams } = req.body;
+//   if (!city || !currentPlace) {
+//     return res.status(400).json({ error: 'Grad i Mesto su obavezni parametri.' });
+//   }
+//   try {
+//     // Konstruišite osnovni upit sa gradom i trenutnim mestom
+//     const searchParams = { city, currentPlace };
+
+//     // Dodajte ostale unete parametre koji postoje u UserDetails dokumentu
+//     for (const key in otherParams) {
+//       if (otherParams.hasOwnProperty(key)) {
+//         searchParams[key] = otherParams[key];
+//       }
+//     }
+
+//     // Upit prema userDetails kolekciji da bi se pronašli odgovarajući useri preko objekta koji dolazi iz searcha
+//     const userDetails = await UserDetails.find(searchParams);
+
+//     // Izvlacenje vlasnika (ownera) iz pronađenih userDetails dokumenata
+//     const owners = userDetails.map(userDetail => userDetail.owner);
+
+//     if (owners.length === 0) {
+//       // Ako nema pronađenih korisnika, vraćamo odgovarajuću poruku sa statusom 404
+//       console.log("NEMA KORISSNIKA")
+//       return res.status(404).json({ message: 'Nema pronadjenih korisnika.' });
+//     }
+
+//     // Koriscenje vlasnika da bih pronašao odgovarajuće korisnike u user kolekciji
+//     const users = await User.find({ _id: { $in: owners } });
+
+//     // Vraca pronađene korisnika kao response
+//     console.log("VRACENI USERRIIIIIIIIIII", users)
+//     return res.status(200).json({ success: true, users });
+
+//   } catch (error) {
+//     console.error(error);
+//     return res.status(500).json({ success: false, message: 'Došlo je do greške prilikom pretrage korisnika.', error });
+//   }
+// });
+
+const searchUser = asyncHandler(async (req, res) => {
+  console.log('REQQQQQQQQ', req.body);
+
+  // Provera da li postoje city i currentPlace u req.body
+  const { city, currentPlace, ...otherParams } = req.body;
+  if (!city || !currentPlace) {
+    return res.status(400).json({ error: 'Grad i Mesto su obavezni parametri.' });
+  }
+  try {
+    // Konstruišite osnovni upit sa gradom i trenutnim mestom
+    const searchParams = { city, currentPlace };
+
+    // Upit prema userDetails kolekciji da bi se pronašli odgovarajući useri preko objekta koji dolazi iz searcha
+    const userDetails = await UserDetails.find(searchParams);
+
+    // Izvlacenje vlasnika (ownera) iz pronađenih userDetails dokumenata
+    const owners = userDetails.map(userDetail => userDetail.owner);
+
+    if (owners.length === 0) {
+      // Ako nema pronađenih korisnika, vraćamo odgovarajuću poruku sa statusom 404
+      console.log("NEMA KORISNIKA")
+      return res.status(404).json({ message: 'Nema pronadjenih korisnika.' });
+    }
+
+    // Filter za proveru podudaranja parametara koji postoje u dokumentima UserDetails
+    const filteredUsers = owners.filter(ownerId => {
+      const userDetailsForOwner = userDetails.find(userDetail => userDetail.owner.toString() === ownerId.toString());
+
+      for (const key in otherParams) {
+        if (otherParams.hasOwnProperty(key)) {
+          if (userDetailsForOwner[key] !== undefined && userDetailsForOwner[key] !== otherParams[key]) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    });
+
+    if (filteredUsers.length === 0) {
+      // Ako nema korisnika koji ispunjavaju uslov, vraćamo odgovarajuću poruku o grešci
+      return res.status(404).json({ message: 'Nema korisnika koji ispunjavaju uslov.' });
+    }
+
+    // Koriscenje vlasnika da bih pronašao odgovarajuće korisnike u user kolekciji
+    const users = await User.find({ _id: { $in: filteredUsers } });
+
+    // Vraca pronađene korisnika kao response
+    console.log("VRACENI USERRIIIIIIIIIII", users)
+    return res.status(200).json({ success: true, users });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: 'Došlo je do greške prilikom pretrage korisnika.', error });
+  }
+});
+
 module.exports = {
   googleSignup,
   registerUser,
@@ -509,5 +676,8 @@ module.exports = {
   resetPasswordConfirm,
   updateUserDetails,
   uploadUserPhoto,
-  updateSocials
+  updateSocials,
+  updateTable,
+  searchByTable,
+  searchUser,
 };
