@@ -656,9 +656,19 @@ const searchUser = asyncHandler(async (req, res) => {
     // Koriscenje vlasnika da bih pronašao odgovarajuće korisnike u user kolekciji
     const users = await User.find({ _id: { $in: filteredUsers } });
 
+    // Dodavanje is userdetails => user objektu i vracanje na front
+    const usersWithDetails = await Promise.all(users.map(async (user) => {
+      const userDetails = await UserDetails.findOne({ owner: user._id });
+      return {
+        ...user._doc, // Sve osnovne informacije o korisniku
+        currentPlace: userDetails.currentPlace, // Dodatne informacije
+        city: userDetails.city,
+      };
+    }));
+
     // Vraca pronađene korisnika kao response
-    console.log("VRACENI USERRIIIIIIIIIII", users)
-    return res.status(200).json({ success: true, users });
+    console.log("VRACENI USERRIIIIIIIIIII", usersWithDetails)
+    return res.status(200).json({ success: true, users: usersWithDetails });
 
   } catch (error) {
     console.error(error);
