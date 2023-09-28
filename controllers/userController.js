@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { generateOTP, mailTransport, generateEmailTemplate, plainEmailTemplate, plainEmailTemplate2, plainEmailTemplate3, generatePasswordResetTemplate } = require("../Utils/mail");
+const { generateOTP, mailTransport, generateEmailTemplate, plainEmailTemplate, plainEmailTemplate2, plainEmailTemplate3, generatePasswordResetTemplate, sendSupportEmailTemplate } = require("../Utils/mail");
 const VerificationToken = require("../models/verificationToken");
 const { request } = require("express");
 const { isValidObjectId } = require("mongoose");
@@ -280,7 +280,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
   const { _id, name, email, photo, phone, bio } = user;
   return res.status(200).json({
     success: true,
-    message: "Your email is verified",
+    message: "Uspešna registracija, Srećno!",
     user: {
       _id,
       name,
@@ -340,7 +340,7 @@ const resetPasswordConfirm = asyncHandler(async (req, res) => {
     if (!user || user.
       resettoken !== code.toUpperCase()) {
       // console.log("NIJE ISTO")
-      return res.send({ success: false, message: "Incorect 5 didgets code" })
+      return res.send({ success: false, message: "Netačan kod iz maila" })
     }
     // if (user.resettoken !== code) {
     //   return res.status(400).send({ success: false, message: "Incorect 5 didgets code" })
@@ -561,6 +561,52 @@ const searchByTable = asyncHandler(async (req, res) => {
   }
 });
 
+//=============================== SEND SUPPORT MAIL ==================================================
+
+const SendSupportEmail = asyncHandler(async (req, res) => {
+  // return console.log("USAAAAOOOO", req.body)
+  const userId = req.user.id;
+  const user = await User.findById(userId);
+
+  try {
+    const { text } = req.body;
+
+    if (text) {
+
+      console.log("ima textaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", text)
+
+      // Provera vremena poslednjeg slanja emaila
+      const currentTime = new Date();
+      const lastEmailTime = user.lastEmailSentAt || new Date(0); // Ako nije postavljeno, koristi se 0 (prvi put)
+
+      // Provera razlike u vremenu u minutama
+      const timeDiffMinutes = Math.abs((currentTime - lastEmailTime) / (1000 * 60));
+
+      // Ako je prošlo manje od 60 minuta od poslednjeg slanja emaila, nece dopustiti ponovno slanje
+      if (timeDiffMinutes < 60) {
+        console.log("USAOOOO SAM OVDEEEEEEEE")
+        return res.status(429).json({ success: false, message: 'Morate pričekati najmanje 1 sat prije nego što ponovo pošaljete email.' });
+      }
+
+      await mailTransport().sendMail({
+        from: user.email,
+        to: 'pepy90aa@gmail.com',
+        subject: "Avankari user support email",
+        html: sendSupportEmailTemplate(text, user)
+      });
+
+      user.emailCount += 1;
+      user.lastEmailSentAt = new Date();
+      await user.save();
+    }
+
+
+    return res.status(200).json({ success: true, message: 'Uspesno si poslao mail. Bices uskoro kontaktiran od strane admina.' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Došlo je do greške prilikom slanja maila, pokusajte kasnije.', error });
+  }
+});
+
 
 //=============================== SEARCH USER ==================================================
 
@@ -609,6 +655,73 @@ const searchByTable = asyncHandler(async (req, res) => {
 //   }
 // });
 
+// const searchUser = asyncHandler(async (req, res) => {
+//   console.log('REQQQQQQQQ', req.body);
+
+//   // Provera da li postoje city i currentPlace u req.body
+//   const { city, currentPlace, ...otherParams } = req.body;
+//   if (!city || !currentPlace) {
+//     return res.status(400).json({ error: 'Grad i Mesto su obavezni parametri.' });
+//   }
+//   try {
+//     // Konstruišite osnovni upit sa gradom i trenutnim mestom
+//     const searchParams = { city, currentPlace };
+
+//     // Upit prema userDetails kolekciji da bi se pronašli odgovarajući useri preko objekta koji dolazi iz searcha
+//     const userDetails = await UserDetails.find(searchParams);
+
+//     // Izvlacenje vlasnika (ownera) iz pronađenih userDetails dokumenata
+//     const owners = userDetails.map(userDetail => userDetail.owner);
+
+//     if (owners.length === 0) {
+//       // Ako nema pronađenih korisnika, vraćamo odgovarajuću poruku sa statusom 404
+//       console.log("NEMA KORISNIKA")
+//       return res.status(404).json({ message: 'Nema pronadjenih korisnika.' });
+//     }
+
+//     // Filter za proveru podudaranja parametara koji postoje u dokumentima UserDetails
+//     const filteredUsers = owners.filter(ownerId => {
+//       const userDetailsForOwner = userDetails.find(userDetail => userDetail.owner.toString() === ownerId.toString());
+
+//       for (const key in otherParams) {
+//         if (otherParams.hasOwnProperty(key)) {
+//           if (userDetailsForOwner[key] !== undefined && userDetailsForOwner[key] !== otherParams[key]) {
+//             return false;
+//           }
+//         }
+//       }
+
+//       return true;
+//     });
+
+//     if (filteredUsers.length === 0) {
+//       // Ako nema korisnika koji ispunjavaju uslov, vraćamo odgovarajuću poruku o grešci
+//       return res.status(404).json({ message: 'Nema korisnika koji ispunjavaju uslov.' });
+//     }
+
+//     // Koriscenje vlasnika da bih pronašao odgovarajuće korisnike u user kolekciji
+//     const users = await User.find({ _id: { $in: filteredUsers } });
+
+//     // Dodavanje is userdetails => user objektu i vracanje na front
+//     const usersWithDetails = await Promise.all(users.map(async (user) => {
+//       const userDetails = await UserDetails.findOne({ owner: user._id });
+//       return {
+//         ...user._doc, // Sve osnovne informacije o korisniku
+//         currentPlace: userDetails.currentPlace, // Dodatne informacije
+//         city: userDetails.city,
+//       };
+//     }));
+
+//     // Vraca pronađene korisnika kao response
+//     console.log("VRACENI USERRIIIIIIIIIII", usersWithDetails)
+//     return res.status(200).json({ success: true, users: usersWithDetails });
+
+//   } catch (error) {
+//     console.error(error);
+//     return res.status(500).json({ success: false, message: 'Došlo je do greške prilikom pretrage korisnika.', error });
+//   }
+// });
+
 const searchUser = asyncHandler(async (req, res) => {
   console.log('REQQQQQQQQ', req.body);
 
@@ -633,12 +746,18 @@ const searchUser = asyncHandler(async (req, res) => {
       return res.status(404).json({ message: 'Nema pronadjenih korisnika.' });
     }
 
-    // Filter za proveru podudaranja parametara koji postoje u dokumentima UserDetails
     const filteredUsers = owners.filter(ownerId => {
       const userDetailsForOwner = userDetails.find(userDetail => userDetail.owner.toString() === ownerId.toString());
 
+      // Provera da li grad i mesto postoje jer su obavezni
+      if (userDetailsForOwner.city !== city || userDetailsForOwner.currentPlace !== currentPlace) {
+        return false;
+      }
+
+      // Uporedite dodatne parametre ako postoje u otherParams
       for (const key in otherParams) {
         if (otherParams.hasOwnProperty(key)) {
+          // Ignorišite parametre koji nisu prisutni u dokumentu
           if (userDetailsForOwner[key] !== undefined && userDetailsForOwner[key] !== otherParams[key]) {
             return false;
           }
@@ -676,6 +795,29 @@ const searchUser = asyncHandler(async (req, res) => {
   }
 });
 
+const removeNetworks = asyncHandler(async (req, res) => {
+  // console.log("USAO U REMOVE NETWORK")
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+
+    user.facebookUrl = ""
+    user.instagramUrl = ""
+    user.phoneNumber = ""
+    user.table = ""
+
+    await user.save()
+
+    // console.log("OVO JE NOV USER ", user)
+    // vraca usera
+    return res.status(200).json({ success: true, user });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Došlo je do greške prilikom brisanja mreža korisnika.', error });
+  }
+});
+
+
+
 module.exports = {
   googleSignup,
   registerUser,
@@ -690,4 +832,6 @@ module.exports = {
   updateTable,
   searchByTable,
   searchUser,
+  SendSupportEmail,
+  removeNetworks
 };

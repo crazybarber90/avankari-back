@@ -11,7 +11,7 @@ const protect = asyncHandler(async (req, res, next) => {
     // const token = req.cookies.token;
     // const token = req.headers.authorization.split(' ')[1]; // Pretpostavlja se da koristite Bearer token
     const token = req.headers.authorization.replace('Bearer ', '');
-    // console.log('Received token:', token);
+    // return console.log('Received token:', token);
 
 
     if (!token) {

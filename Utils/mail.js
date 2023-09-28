@@ -191,4 +191,37 @@ exports.plainEmailTemplate3 = (email, password) => {
 }
 
 
+exports.sendSupportEmailTemplate = (text, user) => {
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+        <head>
+            <meta charset="UTF-8>
+            <meta http-equiv='X-UA-Compatabile" content="IE=edge">
+            <style>
+            @media only screen and (max-width: 620px){
+                h1{
+                    font-size:20px;
+                    padding: 5px;
+                }
+            }
+            h3 {
+                word-wrap: break-word;
+                margin: 20px auto 0;
+            }
+            </style>
+        </head>
+        <body>
+            <div>
+                <div style="max-width: 620px; margin: 0 auto; font-family: sans-serif; color:#272727; text-align: left;">
+                    <h1> Poruka stigla od <span style="color: #399BA6"> ${user.email} </span></h1>
+                    <h1> Poruka stigla od <span style="color: #399BA6">${user.name}</span></h1>
+                        <h3>${text}</h3>
+                </div>
+            </div>
+        </body>
+    </html>
+    `
+}
+
 

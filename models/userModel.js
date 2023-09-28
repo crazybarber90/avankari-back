@@ -57,6 +57,14 @@ const userSchema = mongoose.Schema(
       type: String,
       required: false,
     },
+    emailCount: {
+      type: Number,
+      default: 0,
+    },
+    lastEmailSentAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

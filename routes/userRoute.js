@@ -15,6 +15,8 @@ const {
   updateTable,
   searchByTable,
   searchUser,
+  SendSupportEmail,
+  removeNetworks,
 } = require("../controllers/userController");
 
 const { protect } = require("../middleWare/authMiddleware");
@@ -38,6 +40,10 @@ router.post("/update-table", protect, updateTable);
 //SEARCH
 router.post("/search-by-table", protect, searchByTable);
 router.post("/search-user", protect, searchUser);
+router.post("/remove-networks", protect, removeNetworks);
+
+//SEND MAIL TO ADMIN
+router.post("/send-support-email", protect, SendSupportEmail);
 
 
 module.exports = router;
