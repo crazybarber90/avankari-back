@@ -12,9 +12,18 @@ exports.generateOTP = () => {
 }
 
 // EXPORTED FUNCTION FOR MAIL SERVICE CREDENTIALS <========= this is mailtrap
+// exports.mailTransport = () => nodemailer.createTransport({
+//     host: "sandbox.smtp.mailtrap.io",
+//     port: 2525,
+//     auth: {
+//         user: process.env.MAILSERVICE_USERNAME,
+//         pass: process.env.MAILSERVICE_PASSWORD
+//     }
+// });
+
 exports.mailTransport = () => nodemailer.createTransport({
-    host: "sandbox.smtp.mailtrap.io",
-    port: 2525,
+    host: "smtp-relay.sendinblue.com",
+    port: 587,
     auth: {
         user: process.env.MAILSERVICE_USERNAME,
         pass: process.env.MAILSERVICE_PASSWORD
@@ -224,4 +233,30 @@ exports.sendSupportEmailTemplate = (text, user) => {
     `
 }
 
-
+exports.newUserRegistered = (user) => {
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+        <head>
+            <meta charset="UTF-8>
+            <meta http-equiv='X-UA-Compatabile" content="IE=edge">
+            <style>
+            @media only screen and (max-width: 620px){
+                h1{
+                    font-size:20px;
+                    padding: 5px;
+                }
+            }
+            </style>
+        </head>
+        <body>
+            <div>
+                <div style="max-width: 620px; margin: 0 auto; font-family: sans-serif; color:#272727; text-align: center;">
+                    <h1> Novi user je registrovan na Avankari ${user.email}</h1>
+                        <h3>${user.name}</h3>
+                </div>
+            </div>
+        </body>
+    </html>
+    `
+}

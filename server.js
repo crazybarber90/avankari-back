@@ -22,7 +22,6 @@ app.use(bodyParser.json());
 app.use(
   cors({
     // origin: ["http://localhost:4000", "https://pinvent-app.vercel.app"],
-    // origin: ["http://192.168.0.14:4000", "https://pinvent-app.vercel.app"],
     origin: ["http://192.168.0.13:4000", "https://pinvent-app.vercel.app"],
     //  POVEZI TELEFON NA WIFI ISTI KAO I KOMP !!!!!!!
     credentials: true, // enable sending credentials from backend to frontend
